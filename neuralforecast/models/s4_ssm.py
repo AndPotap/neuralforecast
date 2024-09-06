@@ -1,10 +1,15 @@
 from typing import Dict
+from typing import Optional
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.nn.init as init
 from torch.nn import Parameter as Par
+
+from ..losses.pytorch import MAE
+from ..common._base_windows import BaseWindows
+from ..common._ssm import SSM_Rev
 
 
 def gen_HiPPO_s4d(N: int):
@@ -104,7 +109,7 @@ class SeqBlockGLU(nn.Module):
         return out  # [B,L,D]
 
 
-class SSM_Rev(nn.Module):
+class S4_backbone(nn.Module):
     def __init__(
         self,
         *,
@@ -113,37 +118,120 @@ class SSM_Rev(nn.Module):
         d_state: int,
         width: int,
         depth: int,
-        hist_size: int,
-        futr_size: int,
         dropout: float,
         device,
     ):
         super().__init__()
-        seq_kwargs = {"d_state": d_state, "input_size": input_size + num_horizons, "width": width, "device": device}
-        self.input_layer = nn.Linear(1 + hist_size + futr_size, width)
-        self.proj = nn.Linear(input_size, num_horizons)
+        seq_kwargs = {"d_state": d_state, "input_size": input_size, "width": width, "device": device}
+        self.input_layer = nn.Linear(1, width)
         self.output_layer = nn.Linear(width, 1)
-        self.mixer = nn.Linear(input_size + num_horizons, num_horizons)
+        self.mixer = nn.Linear(input_size, num_horizons)
         self.layers = nn.ModuleList()
         for ldx in range(depth):
             self.layers.append(SeqBlockGLU(seq_cls=S4DLayer, seq_kwargs=seq_kwargs, width=width, dropout=dropout))
 
-    def forward(self, y, yhat, xt, xf, xs) -> torch.Tensor:
-        # y: [B,L]
-        # yhat: [B,H]
-        # xt: [B,L,D_t]
-        # xf: [B,L+H,D_f]
-        # xs: [B,D_s]
-        y_all = torch.concat((y[:, :, None], yhat[:, :, None]), dim=-2)  # [B,L+H,1]
-        xt_f = self.proj(xt.transpose(-1, -2)).transpose(-1, -2)  # [B,H,D_t]
-        zt = torch.concat((xt, xt_f), dim=-2)  # [B,L+H,D_t]
-        if xs is not None:
-            z_all = torch.concat((y_all, zt, xf, xs[:, None, :]), dim=-1)  # [B,L+H,1+D_t+D_f+D_s]
-        else:
-            z_all = torch.concat((y_all, zt, xf), dim=-1)  # [B,L+H,1+D_t+D_f+D_s]
-        z = self.input_layer(z_all)  # [B,L+H,W]
+    def forward(self, xt_target: torch.Tensor, xt: torch.Tensor, xs: torch.Tensor, xf: torch.Tensor) -> torch.Tensor:
+        # xt_target: [B*W,L,1]
+        yt = self.input_layer(xt_target)  # [B*W,L,D]
         for layer in self.layers:
-            z = layer(z)  # [B,L+H,W]
-        z = self.output_layer(z)  # [B,L+H,1]
-        yhat = self.mixer(z[:, :, 0])  # [B,H]
-        return yhat  # [B,H]
+            yt = layer(yt)  # [B*W,L,D]
+        yt = self.output_layer(yt)  # [B*W,L,1]
+        yt = self.mixer(yt[:, :, 0])  # [B*W,H]
+        return yt  # [B*W,H]
+
+
+class S4_SSM(BaseWindows):
+    def __init__(
+        self,
+        h,
+        input_size,
+        d_state,
+        width,
+        depth,
+        dropout,
+        futr_exog_list=None,
+        hist_exog_list=None,
+        stat_exog_list=None,
+        exclude_insample_y=False,
+        loss=MAE(),
+        valid_loss=None,
+        max_steps: int = 1000,
+        learning_rate: float = 1e-3,
+        num_lr_decays: int = 3,
+        early_stop_patience_steps: int = -1,
+        val_check_steps: int = 100,
+        batch_size: int = 32,
+        valid_batch_size: Optional[int] = None,
+        windows_batch_size: int = 1024,
+        inference_windows_batch_size: int = -1,
+        start_padding_enabled=False,
+        step_size: int = 1,
+        scaler_type: str = "identity",
+        random_seed: int = 1,
+        num_workers_loader=0,
+        drop_last_loader=False,
+        optimizer=None,
+        optimizer_kwargs=None,
+        lr_scheduler=None,
+        lr_scheduler_kwargs=None,
+        **trainer_kwargs,
+    ):
+        super().__init__(
+            h=h,
+            input_size=input_size,
+            futr_exog_list=futr_exog_list,
+            hist_exog_list=hist_exog_list,
+            stat_exog_list=stat_exog_list,
+            exclude_insample_y=exclude_insample_y,
+            loss=loss,
+            valid_loss=valid_loss,
+            max_steps=max_steps,
+            learning_rate=learning_rate,
+            num_lr_decays=num_lr_decays,
+            early_stop_patience_steps=early_stop_patience_steps,
+            val_check_steps=val_check_steps,
+            batch_size=batch_size,
+            windows_batch_size=windows_batch_size,
+            valid_batch_size=valid_batch_size,
+            inference_windows_batch_size=inference_windows_batch_size,
+            start_padding_enabled=start_padding_enabled,
+            step_size=step_size,
+            scaler_type=scaler_type,
+            num_workers_loader=num_workers_loader,
+            drop_last_loader=drop_last_loader,
+            random_seed=random_seed,
+            optimizer=optimizer,
+            optimizer_kwargs=optimizer_kwargs,
+            lr_scheduler=lr_scheduler,
+            lr_scheduler_kwargs=lr_scheduler_kwargs,
+            **trainer_kwargs,
+        )
+        self.ssm = SSM_Rev(
+            input_size=input_size,
+            num_horizons=h,
+            d_state=d_state,
+            width=width,
+            depth=depth,
+            dropout=dropout,
+            hist_size=self.hist_exog_size,
+            futr_size=self.futr_exog_size,
+            device=None,
+        )
+        self.model = S4_backbone(
+            input_size=input_size,
+            num_horizons=h,
+            d_state=d_state,
+            width=width,
+            depth=depth,
+            dropout=dropout,
+            device=None,
+        )
+
+    def forward(self, windows_batch):
+        xt_target = windows_batch["insample_y"]
+        xt = windows_batch["hist_exog"]
+        xs = windows_batch["stat_exog"]
+        xf = windows_batch["futr_exog"]
+        forecast = self.model(xt_target=xt_target[:, :, None], xt=xt, xs=xs, xf=xf)
+        forecast = self.ssm(y=xt_target, yhat=forecast, xt=xt, xf=xf, xs=xs)
+        return forecast

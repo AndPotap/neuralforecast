@@ -335,7 +335,7 @@ class NHITS_SSM(BaseWindows):
         insample_mask = windows_batch["insample_mask"]
         futr_exog = windows_batch["futr_exog"]
         hist_exog = windows_batch["hist_exog"]
-        # stat_exog = windows_batch["stat_exog"]
+        stat_exog = windows_batch["stat_exog"]
 
         # insample
         residuals = insample_y.flip(dims=(-1,))  # backcast init
@@ -359,6 +359,6 @@ class NHITS_SSM(BaseWindows):
         # Adapting output's domain
         forecast = self.loss.domain_map(forecast)
 
-        forecast = self.ssm(y=insample_y, yhat=forecast, xt=hist_exog, xf=futr_exog)
+        forecast = self.ssm(y=insample_y, yhat=forecast, xt=hist_exog, xf=futr_exog, xs=stat_exog)
 
         return forecast

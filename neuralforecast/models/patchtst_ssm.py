@@ -1027,7 +1027,7 @@ class PatchTST_SSM(BaseWindows):
         insample_y = windows_batch["insample_y"]
         # insample_mask = windows_batch['insample_mask']
         hist_exog = windows_batch['hist_exog']
-        # stat_exog     = windows_batch['stat_exog']
+        stat_exog = windows_batch['stat_exog']
         futr_exog = windows_batch['futr_exog']
 
         # Add dimension for channel
@@ -1040,6 +1040,6 @@ class PatchTST_SSM(BaseWindows):
         # Domain map
         forecast = self.loss.domain_map(x)
 
-        forecast = self.ssm(y=insample_y, yhat=forecast, xt=hist_exog, xf=futr_exog)
+        forecast = self.ssm(y=insample_y, yhat=forecast, xt=hist_exog, xf=futr_exog, xs=stat_exog)
 
         return forecast
