@@ -112,7 +112,6 @@ class S4_backbone(nn.Module):
     def __init__(
         self,
         *,
-        d_model: int,
         input_size: int,
         num_horizons: int,
         d_state: int,
@@ -145,7 +144,6 @@ class S4(BaseWindows):
         self,
         h,
         input_size,
-        d_model,
         d_state,
         width,
         depth,
@@ -208,7 +206,6 @@ class S4(BaseWindows):
             **trainer_kwargs,
         )
         self.model = S4_backbone(
-            d_model=d_model,
             input_size=input_size,
             num_horizons=h,
             d_state=d_state,
