@@ -3,7 +3,7 @@ __all__ = ['RNN', 'GRU', 'LSTM', 'TCN', 'DeepAR', 'DilatedRNN',
            'TFT', 'VanillaTransformer', 'Informer', 'Autoformer', 'PatchTST', 'FEDformer',
            'StemGNN', 'HINT', 'TimesNet', 'TimeLLM', 'TSMixer', 'TSMixerx', 'MLPMultivariate',
            'iTransformer', 'BiTCN', 'TiDE', 'DeepNPTS', 'SOFTS', 'TimeMixer', 'KAN',
-           'S4', 'NHITS_SSM'
+           'S4', 'NHITS_SSM', 'PatchTST_SSM'
            ]
 
 from .rnn import RNN
@@ -40,3 +40,4 @@ from .timemixer import TimeMixer
 from .kan import KAN
 from .s4 import S4
 from .nhits_ssm import NHITS_SSM
+from .patchtst_ssm import PatchTST_SSM
