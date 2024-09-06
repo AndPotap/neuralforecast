@@ -13,6 +13,7 @@ import torch.nn.functional as F
 
 from ..losses.pytorch import MAE
 from ..common._base_windows import BaseWindows
+from ..common._ssm import SSM_Rev
 
 # %% ../../nbs/models.nhits.ipynb 8
 
@@ -238,6 +239,18 @@ class NHITS_SSM(BaseWindows):
         )
 
         # Architecture
+        self.ssm = SSM_Rev(
+            d_model=64,
+            input_size=input_size,
+            num_horizons=h,
+            d_state=64,
+            width=100,
+            depth=2,
+            hist_size=self.hist_exog_size,
+            futr_size=self.futr_exog_size,
+            dropout=0.2,
+            device=None,
+        )
         blocks = self.create_stack(
             h=h,
             input_size=input_size,
@@ -342,5 +355,7 @@ class NHITS_SSM(BaseWindows):
 
         # Adapting output's domain
         forecast = self.loss.domain_map(forecast)
+
+        forecast = self.ssm(y=insample_y, yhat=forecast, xt=hist_exog, xf=futr_exog)
 
         return forecast
