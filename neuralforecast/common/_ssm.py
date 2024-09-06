@@ -108,7 +108,6 @@ class SSM_Rev(nn.Module):
     def __init__(
         self,
         *,
-        d_model: int,
         input_size: int,
         num_horizons: int,
         d_state: int,

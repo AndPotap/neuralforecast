@@ -169,6 +169,10 @@ class NHITS_SSM(BaseWindows):
         self,
         h,
         input_size,
+        d_state,
+        width,
+        depth,
+        dropout,
         futr_exog_list=None,
         hist_exog_list=None,
         stat_exog_list=None,
@@ -240,15 +244,14 @@ class NHITS_SSM(BaseWindows):
 
         # Architecture
         self.ssm = SSM_Rev(
-            d_model=64,
             input_size=input_size,
             num_horizons=h,
-            d_state=64,
-            width=100,
-            depth=2,
+            d_state=d_state,
+            width=width,
+            depth=depth,
+            dropout=dropout,
             hist_size=self.hist_exog_size,
             futr_size=self.futr_exog_size,
-            dropout=0.2,
             device=None,
         )
         blocks = self.create_stack(
