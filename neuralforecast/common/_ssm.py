@@ -115,13 +115,15 @@ class SSM_Rev(nn.Module):
         depth: int,
         hist_size: int,
         futr_size: int,
+        stat_size: int,
         dropout: float,
         device,
     ):
         super().__init__()
         seq_kwargs = {"d_state": d_state, "input_size": input_size + num_horizons, "width": width, "device": device}
-        self.input_layer = nn.Linear(1 + hist_size + futr_size, width)
-        self.proj = nn.Linear(input_size, num_horizons)
+        self.input_layer = nn.Linear(1 + hist_size + futr_size + stat_size, width)
+        if hist_size > 0:
+            self.proj = nn.Linear(input_size, num_horizons)
         self.output_layer = nn.Linear(width, 1)
         self.mixer = nn.Linear(input_size + num_horizons, num_horizons)
         self.layers = nn.ModuleList()
@@ -135,12 +137,13 @@ class SSM_Rev(nn.Module):
         # xf: [B,L+H,D_f]
         # xs: [B,D_s]
         y_all = torch.concat((y[:, :, None], yhat[:, :, None]), dim=-2)  # [B,L+H,1]
-        xt_f = self.proj(xt.transpose(-1, -2)).transpose(-1, -2)  # [B,H,D_t]
-        zt = torch.concat((xt, xt_f), dim=-2)  # [B,L+H,D_t]
+        z_all = torch.concat((y_all, xf), dim=-1)  # [B,L+H,1+D_f]
+        if xt is not None:
+            xt_f = self.proj(xt.transpose(-1, -2)).transpose(-1, -2)  # [B,H,D_t]
+            zt = torch.concat((xt, xt_f), dim=-2)  # [B,L+H,D_t]
+            z_all = torch.concat((z_all, zt), dim=-1)  # [B,L+H,1+D_f+D_h]
         if xs is not None:
-            z_all = torch.concat((y_all, zt, xf, xs[:, None, :]), dim=-1)  # [B,L+H,1+D_t+D_f+D_s]
-        else:
-            z_all = torch.concat((y_all, zt, xf), dim=-1)  # [B,L+H,1+D_t+D_f+D_s]
+            z_all = torch.concat((z_all, xs[:, None, :]), dim=-1)  # [B,L+H,1+D_t+D_f+D_s]
         z = self.input_layer(z_all)  # [B,L+H,W]
         for layer in self.layers:
             z = layer(z)  # [B,L+H,W]

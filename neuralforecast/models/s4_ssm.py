@@ -215,6 +215,7 @@ class S4_SSM(BaseWindows):
             dropout=dropout,
             hist_size=self.hist_exog_size,
             futr_size=self.futr_exog_size,
+            stat_size=self.stat_exog_size,
             device=None,
         )
         self.model = S4_backbone(
