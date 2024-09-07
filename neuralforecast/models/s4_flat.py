@@ -140,7 +140,7 @@ class S4_backbone(nn.Module):
         return yt  # [B*W,H]
 
 
-class S4_SSM(BaseWindows):
+class S4_Flat(BaseWindows):
     def __init__(
         self,
         h,
