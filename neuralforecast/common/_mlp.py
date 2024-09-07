@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 
 class Flat_Rev(nn.Module):
@@ -23,6 +24,7 @@ class Flat_Rev(nn.Module):
         self.input_layer = nn.Linear(in_size, width)
         self.layers = nn.ModuleList([nn.Linear(width, width) for _ in range(depth)])
         self.output_layer = nn.Linear(width, num_horizons)
+        self.act = F.gelu
 
     def forward(self, y, yhat, xt, xf, xs) -> torch.Tensor:
         # y: [B,L]
@@ -38,9 +40,9 @@ class Flat_Rev(nn.Module):
             z_all = torch.concat((z_all, xt.reshape(B, -1)), dim=-1)
         if xs is not None:
             z_all = torch.concat((z_all, xs.reshape(B, -1)), dim=-1)
-        z = self.input_layer(z_all)
+        z = self.act(self.input_layer(z_all))
         for layer in self.layers:
-            z = layer(z)
+            z = self.act(layer(z))
         z = self.output_layer(z)
         yhat = z.reshape(B, H)
         return yhat  # [B,H]
