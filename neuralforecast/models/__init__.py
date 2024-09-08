@@ -3,7 +3,8 @@ __all__ = ['RNN', 'GRU', 'LSTM', 'TCN', 'DeepAR', 'DilatedRNN',
            'TFT', 'VanillaTransformer', 'Informer', 'Autoformer', 'PatchTST', 'FEDformer',
            'StemGNN', 'HINT', 'TimesNet', 'TimeLLM', 'TSMixer', 'TSMixerx', 'MLPMultivariate',
            'iTransformer', 'BiTCN', 'TiDE', 'DeepNPTS', 'SOFTS', 'TimeMixer', 'KAN',
-           'S4', 'S4_SSM', 'NHITS_SSM', 'PatchTST_SSM', 'NBEATS_SSM',
+           'S4',
+           'S4_SSM', 'NHITS_SSM', 'PatchTST_SSM', 'NBEATS_SSM', 'Autoformer_SSM',
            'PatchTST_Flat', 'S4_Flat', 'NBEATS_Flat', 'NHITS_Flat'
            ]
 
@@ -48,3 +49,4 @@ from .nhits_ssm import NHITS_SSM
 from .nhits_flat import NHITS_Flat
 from .patchtst_ssm import PatchTST_SSM
 from .patchtst_flat import PatchTST_Flat
+from .autoformer_smm import Autoformer_SSM
